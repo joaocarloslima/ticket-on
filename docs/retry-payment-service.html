@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Retry no payment-service</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: uma coluna para projeção; cada parte tem controles, uma cena animada e uma leitura curta */
+:root {
+  --bg: #f3f5f8; --panel: #ffffff; --fg: #16202b; --muted: #566372; --line: #c9d1db;
+  --accent: #1f5fa8; --accent-soft: #e2ecf8;
+  --svc: #e7eef6; --svc-line: #7c93ad; --team: #eceff3;
+  --ok: #dcefe6; --ok-line: #2f8a5f; --ok-fg: #1d5a3d;
+  --warn: #fbeccc; --warn-line: #b7791f; --warn-fg: #6b4610;
+  --bad: #f9dede; --bad-line: #c0392b; --bad-fg: #7a1f17;
+  --font-body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11161c; --panel: #19212a; --fg: #e6ebf1; --muted: #9aa8b7; --line: #2e3a47;
+    --accent: #7fb0ea; --accent-soft: #1e3149; --svc: #1f2b38; --svc-line: #5f7b99; --team: #222b35;
+    --ok: #17362a; --ok-line: #4fbf88; --ok-fg: #b5ecd0;
+    --warn: #3a2d14; --warn-line: #e0a63f; --warn-fg: #f6dcaa;
+    --bad: #3d1c1a; --bad-line: #ef6b5d; --bad-fg: #f8c5bf;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11161c; --panel: #19212a; --fg: #e6ebf1; --muted: #9aa8b7; --line: #2e3a47;
+  --accent: #7fb0ea; --accent-soft: #1e3149; --svc: #1f2b38; --svc-line: #5f7b99; --team: #222b35;
+  --ok: #17362a; --ok-line: #4fbf88; --ok-fg: #b5ecd0;
+  --warn: #3a2d14; --warn-line: #e0a63f; --warn-fg: #f6dcaa;
+  --bad: #3d1c1a; --bad-line: #ef6b5d; --bad-fg: #f8c5bf;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); font-size: 18px; line-height: 1.55;
+  padding-block: 2rem 3rem;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1040px; margin: 0 auto; display: grid; gap: 1.5rem; }
+header { display: grid; gap: .35rem; }
+.eyebrow { font-family: var(--font-mono); font-size: .8rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+h1 { margin: 0; font-size: clamp(1.8rem, 4vw, 2.6rem); line-height: 1.15; text-wrap: balance; }
+h2.part { margin: 1rem 0 0; font-size: clamp(1.35rem, 3vw, 1.75rem); line-height: 1.2; text-wrap: balance; }
+.lede { margin: 0; color: var(--muted); max-width: 64ch; }
+pre.ann { margin: 0; font-family: var(--font-mono); font-size: .85rem; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: .9rem 1.1rem; overflow-x: auto; color: var(--fg); }
+.controls { display: grid; gap: .8rem; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 1rem 1.1rem; }
+.sliders { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: .6rem 1.5rem; }
+.sl { display: grid; grid-template-columns: 1fr auto; gap: .1rem .5rem; align-items: center; min-width: 0; }
+.sl label { font-family: var(--font-mono); font-size: .8rem; color: var(--muted); }
+.sl output { font-family: var(--font-mono); font-size: .85rem; font-variant-numeric: tabular-nums; }
+.sl input { grid-column: 1 / -1; width: 100%; accent-color: var(--accent); }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+button {
+  font: inherit; font-size: .95rem; color: var(--fg); background: transparent;
+  border: 1px solid var(--line); border-radius: 6px; padding: .4rem .85rem; cursor: pointer;
+}
+button:hover { border-color: var(--accent); }
+button.primary { border-color: var(--accent); color: var(--accent); font-weight: 700; }
+button[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 700; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.stage { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 1rem; overflow-x: auto; }
+svg { display: block; width: 100%; min-width: 600px; height: auto; }
+svg text { font-family: var(--font-body); fill: var(--fg); }
+svg .ttl { font-size: 14px; font-weight: 700; }
+svg .sub { font-size: 12px; fill: var(--muted); }
+svg .mono { font-family: var(--font-mono); font-size: 11px; fill: var(--muted); }
+.n-svc rect { fill: var(--svc); stroke: var(--svc-line); }
+.axis { stroke: var(--line); stroke-width: 1; }
+.kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+.kpi { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: .8rem 1rem; min-width: 0; }
+.kpi span { display: block; font-size: .85rem; color: var(--muted); }
+.kpi b { font-size: 1.6rem; font-variant-numeric: tabular-nums; }
+.kpi.good b { color: var(--ok-line); }
+.kpi.bad b { color: var(--bad-line); }
+.reading { display: grid; gap: .4rem; background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 0; padding: 1rem 1.25rem; }
+.reading p { margin: 0; max-width: 70ch; }
+.notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; }
+.notes div { min-width: 0; }
+.notes h3 { margin: 0 0 .25rem; font-size: 1rem; }
+.notes p { margin: 0; color: var(--muted); font-size: .95rem; }
+code { font-family: var(--font-mono); font-size: .9em; }
+footer { font-family: var(--font-mono); font-size: .75rem; color: var(--muted); }
+@media (max-width: 520px) { body { font-size: 16px; } .kpis { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="eyebrow">ticket-system · payment-service</span>
+    <h1>Retry com backoff: quando o pagamento falha 70% das vezes</h1>
+    <p class="lede">O ticket-service chama o payment-service antes de baixar o estoque. O pagamento falha de propósito em 70% das chamadas, e o <code>@Retryable</code> decide quantas vezes tentar de novo e quanto esperar entre as tentativas.</p>
+  </header>
+
+  <pre class="ann" aria-label="Configuração usada na aula">@Retryable(
+        includes = ResponseStatusException.class,
+        maxRetries = 5,
+        delay = 500,
+        jitter = 50,
+        multiplier = 2,
+        maxDelay = 10_000
+)</pre>
+
+  <section class="controls" aria-label="Parâmetros do retry">
+    <div class="sliders">
+      <div class="sl"><label for="p-retries">maxRetries</label><output id="o-retries"></output><input type="range" id="p-retries" min="0" max="8" step="1" value="5"></div>
+      <div class="sl"><label for="p-delay">delay (ms)</label><output id="o-delay"></output><input type="range" id="p-delay" min="100" max="2000" step="100" value="500"></div>
+      <div class="sl"><label for="p-mult">multiplier</label><output id="o-mult"></output><input type="range" id="p-mult" min="1" max="3" step="0.5" value="2"></div>
+      <div class="sl"><label for="p-max">maxDelay (ms)</label><output id="o-max"></output><input type="range" id="p-max" min="1000" max="20000" step="1000" value="10000"></div>
+      <div class="sl"><label for="p-jitter">jitter (ms)</label><output id="o-jitter"></output><input type="range" id="p-jitter" min="0" max="500" step="25" value="50"></div>
+      <div class="sl"><label for="p-fail">chance de falha</label><output id="o-fail"></output><input type="range" id="p-fail" min="0" max="95" step="5" value="70"></div>
+    </div>
+    <div class="row"><button id="reset">Voltar aos valores da aula</button><span class="mono" style="font-family:var(--font-mono);font-size:.8rem;color:var(--muted)">Os parâmetros valem para as três partes da página.</span></div>
+  </section>
+
+  <h2 class="part">1. Uma compra, várias tentativas</h2>
+  <div class="row"><button class="primary" id="run1">Nova compra</button></div>
+  <section class="stage" aria-label="Animação de uma compra">
+    <svg id="s1" viewBox="0 0 680 250" role="img" aria-labelledby="s1-t"><title id="s1-t">Pacotes entre ticket-service e payment-service e linha do tempo das tentativas</title></svg>
+  </section>
+  <section class="kpis" aria-live="polite">
+    <div class="kpi"><span>Tentativas</span><b id="a1">0</b></div>
+    <div class="kpi"><span>Tempo esperando</span><b id="a2">0 s</b></div>
+    <div class="kpi" id="a3box"><span>Resultado</span><b id="a3">aguardando</b></div>
+  </section>
+  <section class="reading" aria-live="polite"><p id="r1">Clique em “Nova compra” para ver uma compra passando pelo retry. Cada clique sorteia de novo as falhas.</p></section>
+
+  <h2 class="part">2. Quanto o retry realmente ajuda</h2>
+  <section class="stage" aria-label="Chance de sucesso por número de retries">
+    <svg id="s2" viewBox="0 0 680 260" role="img" aria-labelledby="s2-t"><title id="s2-t">Chance de a compra ser aprovada para cada valor de maxRetries</title></svg>
+  </section>
+  <section class="reading" aria-live="polite"><p id="r2"></p></section>
+
+  <h2 class="part">3. 50 compras ao mesmo tempo: por que existe o jitter</h2>
+  <div class="row" role="group" aria-label="Opções da simulação">
+    <button id="j-off" data-j="off">Sem jitter</button>
+    <button id="j-on" data-j="on">Com jitter</button>
+    <span style="width:1rem"></span>
+    <button id="w-short" data-w="short">Primeiros 4 s</button>
+    <button id="w-full" data-w="full">Linha do tempo toda</button>
+    <button class="primary" id="run3">Disparar o k6</button>
+  </div>
+  <section class="stage" aria-label="Chegadas no payment-service">
+    <svg id="s3" viewBox="0 0 680 270" role="img" aria-labelledby="s3-t"><title id="s3-t">Histograma de requisições chegando ao payment-service ao longo do tempo</title></svg>
+  </section>
+  <section class="kpis" aria-live="polite">
+    <div class="kpi"><span>Requisições no payment</span><b id="b1">0</b></div>
+    <div class="kpi"><span>Pico no mesmo instante</span><b id="b2">0</b></div>
+    <div class="kpi"><span>Compras recusadas</span><b id="b3">0</b></div>
+  </section>
+  <section class="reading" aria-live="polite"><p id="r3"></p></section>
+
+  <section class="notes" aria-label="Para discutir">
+    <div><h3>Falha temporária ou permanente</h3><p><code>includes = ResponseStatusException.class</code> pega qualquer status, inclusive um 400 de dado inválido, que vai falhar em todas as tentativas. Vale filtrar só o que é temporário.</p></div>
+    <div><h3>Cobrar duas vezes</h3><p>Se o pagamento foi aprovado, mas a resposta se perdeu na rede, o retry cobra de novo. É aqui que entra idempotência: o mesmo pedido repetido precisa ter o mesmo efeito.</p></div>
+    <div><h3>Retry dentro do lock</h3><p>Se a chamada ao pagamento acontece dentro da transação com <code>PESSIMISTIC_WRITE</code>, cada espera segura a linha do ingresso, e as outras compras ficam na fila esse tempo todo.</p></div>
+    <div><h3>Para que serve o maxDelay</h3><p>Com 5 retries, a maior espera é 8 s e o teto de 10 s nunca age. Suba o <code>maxRetries</code> para 6 ou 7 e veja as esperas pararem de dobrar.</p></div>
+  </section>
+
+  <footer>Material de apoio para aula · Java Advanced</footer>
+</div>
+
+<script>
+(function () {
+  var CALL = 100;
+  var DEF = { retries: 5, delay: 500, mult: 2, max: 10000, jitter: 50, fail: 70 };
+  var ids = { retries: 'p-retries', delay: 'p-delay', mult: 'p-mult', max: 'p-max', jitter: 'p-jitter', fail: 'p-fail' };
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function P() {
+    return {
+      retries: +document.getElementById(ids.retries).value,
+      delay: +document.getElementById(ids.delay).value,
+      mult: +document.getElementById(ids.mult).value,
+      max: +document.getElementById(ids.max).value,
+      jitter: +document.getElementById(ids.jitter).value,
+      fail: +document.getElementById(ids.fail).value / 100
+    };
+  }
+  function fmtMs(ms) { return ms >= 1000 ? (ms / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' s' : Math.round(ms) + ' ms'; }
+  function pct(x) { return Math.round(x * 100) + '%'; }
+  function waitFor(k, p, useJitter) {
+    var d = Math.min(p.delay * Math.pow(p.mult, k), p.max);
+    if (useJitter && p.jitter) d += (Math.random() * 2 - 1) * p.jitter;
+    return Math.max(0, Math.min(d, p.max));
+  }
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  function tween(ms, fn) {
+    return new Promise(function (res) {
+      if (reduce) { fn(1); res(); return; }
+      var t0 = performance.now();
+      function step(now) { var k = Math.min(1, (now - t0) / ms); fn(k); if (k < 1) requestAnimationFrame(step); else res(); }
+      requestAnimationFrame(step);
+    });
+  }
+
+  function syncOutputs() {
+    var p = P();
+    document.getElementById('o-retries').textContent = p.retries + ' (' + (p.retries + 1) + ' tentativas)';
+    document.getElementById('o-delay').textContent = p.delay;
+    document.getElementById('o-mult').textContent = p.mult.toLocaleString('pt-BR');
+    document.getElementById('o-max').textContent = p.max.toLocaleString('pt-BR');
+    document.getElementById('o-jitter').textContent = p.jitter;
+    document.getElementById('o-fail').textContent = pct(p.fail);
+  }
+
+  /* Parte 1 */
+  var token1 = 0;
+  var s1 = document.getElementById('s1');
+  function scene1Base() {
+    return '<g class="n-svc"><rect x="40" y="20" width="170" height="56" rx="7" stroke-width="1"/>' +
+      '<text class="ttl" x="125" y="40" text-anchor="middle" dominant-baseline="central">ticket-service</text>' +
+      '<text class="sub" x="125" y="59" text-anchor="middle" dominant-baseline="central">TicketService.purchase</text></g>' +
+      '<g class="n-svc"><rect x="470" y="20" width="170" height="56" rx="7" stroke-width="1"/>' +
+      '<text class="ttl" x="555" y="40" text-anchor="middle" dominant-baseline="central">payment-service</text>' +
+      '<text class="sub" x="555" y="59" text-anchor="middle" dominant-baseline="central">falha <tspan id="ftxt"></tspan> das vezes</text></g>' +
+      '<line class="axis" x1="214" y1="48" x2="466" y2="48" stroke-dasharray="3 4"/>' +
+      '<circle id="pk" cx="214" cy="48" r="9" fill="var(--accent)" opacity="0"/>' +
+      '<text id="pklbl" class="mono" x="340" y="34" text-anchor="middle"></text>' +
+      '<line class="axis" x1="40" y1="170" x2="640" y2="170"/>' +
+      '<text class="mono" x="40" y="232">0 s</text>' +
+      '<text id="tend" class="mono" x="640" y="232" text-anchor="end"></text>' +
+      '<text class="sub" x="40" y="118">Linha do tempo da compra</text>' +
+      '<g id="tl"></g>';
+  }
+  function plan(p) {
+    var at = [], waits = [], t = 0;
+    for (var k = 0; k <= p.retries; k++) {
+      var ok = Math.random() >= p.fail;
+      at.push({ start: t, ok: ok }); t += CALL;
+      if (ok || k === p.retries) break;
+      var d = waitFor(k, p, true);
+      waits.push({ from: t, dur: d }); t += d;
+    }
+    return { at: at, waits: waits, T: t };
+  }
+  async function run1() {
+    var my = ++token1, p = P(), r = plan(p);
+    s1.innerHTML = scene1Base();
+    document.getElementById('ftxt').textContent = pct(p.fail);
+    document.getElementById('tend').textContent = fmtMs(r.T);
+    var tl = document.getElementById('tl'), pk = document.getElementById('pk'), lbl = document.getElementById('pklbl');
+    var X = function (t) { return 40 + (r.T ? t / r.T : 0) * 600; };
+    var totalWait = r.waits.reduce(function (s, w) { return s + w.dur; }, 0);
+    var realTotal = Math.min(6000, Math.max(1500, totalWait / 3));
+    var waited = 0;
+    document.getElementById('a3box').className = 'kpi';
+    document.getElementById('a3').textContent = 'em andamento';
+    for (var i = 0; i < r.at.length; i++) {
+      if (my !== token1) return;
+      var a = r.at[i];
+      document.getElementById('a1').textContent = (i + 1);
+      lbl.textContent = i === 0 ? 'tentativa 1' : 'retry ' + i + ' de ' + p.retries;
+      document.getElementById('r1').textContent = i === 0 ? 'Primeira chamada ao pagamento.' : 'Depois de esperar, o @Retryable chama o pagamento de novo (retry ' + i + ').';
+      tl.insertAdjacentHTML('beforeend', '<circle id="m' + i + '" cx="' + X(a.start + CALL / 2) + '" cy="170" r="7" fill="var(--muted)"/>');
+      pk.setAttribute('fill', 'var(--accent)'); pk.setAttribute('opacity', '1');
+      await tween(420, function (k) { pk.setAttribute('cx', 214 + k * 252); });
+      if (my !== token1) return;
+      pk.setAttribute('fill', a.ok ? 'var(--ok-line)' : 'var(--bad-line)');
+      await tween(420, function (k) { pk.setAttribute('cx', 466 - k * 252); });
+      if (my !== token1) return;
+      pk.setAttribute('opacity', '0');
+      document.getElementById('m' + i).setAttribute('fill', a.ok ? 'var(--ok-line)' : 'var(--bad-line)');
+      if (a.ok) break;
+      var w = r.waits[i];
+      if (!w) break;
+      var x0 = X(w.from), wpx = X(w.from + w.dur) - x0;
+      tl.insertAdjacentHTML('beforeend', '<rect id="w' + i + '" x="' + x0 + '" y="162" width="0" height="16" rx="3" fill="var(--warn)" stroke="var(--warn-line)" stroke-width="1"/>');
+      if (wpx > 46) tl.insertAdjacentHTML('beforeend', '<text class="mono" x="' + (x0 + wpx / 2) + '" y="198" text-anchor="middle">' + fmtMs(w.dur) + '</text>');
+      lbl.textContent = 'esperando ' + fmtMs(w.dur);
+      document.getElementById('r1').textContent = 'Falhou. O retry espera ' + fmtMs(w.dur) + (i > 0 ? ', o dobro da espera anterior, mais ou menos o jitter.' : ' antes de tentar de novo.');
+      var wr = document.getElementById('w' + i), realMs = Math.max(260, w.dur / (totalWait || 1) * realTotal), base = waited;
+      await tween(realMs, function (k) { wr.setAttribute('width', Math.max(0, wpx * k)); document.getElementById('a2').textContent = fmtMs(base + w.dur * k); });
+      waited += w.dur;
+    }
+    if (my !== token1) return;
+    var last = r.at[r.at.length - 1];
+    lbl.textContent = last.ok ? 'pagamento aprovado' : 'retries esgotados';
+    document.getElementById('a2').textContent = fmtMs(waited);
+    document.getElementById('a3box').className = 'kpi ' + (last.ok ? 'good' : 'bad');
+    document.getElementById('a3').textContent = last.ok ? 'aprovada' : 'recusada';
+    document.getElementById('r1').textContent = last.ok
+      ? 'Aprovada na tentativa ' + r.at.length + ', depois de ' + fmtMs(waited) + ' esperando. Para o usuário, a compra só demorou mais.'
+      : 'Todas as ' + r.at.length + ' tentativas falharam. O usuário esperou ' + fmtMs(waited) + ' e recebeu um erro mesmo assim.';
+  }
+
+  /* Parte 2 */
+  function draw2() {
+    var p = P(), s = '', n = 9, bw = 48, gap = (600 - n * bw) / (n - 1);
+    s += '<line class="axis" x1="40" y1="200" x2="640" y2="200"/>';
+    [0, 50, 100].forEach(function (v) {
+      var y = 200 - v * 1.6;
+      s += '<line class="axis" x1="40" y1="' + y + '" x2="640" y2="' + y + '" stroke-dasharray="2 4" opacity=".6"/>';
+    });
+    for (var k = 0; k < n; k++) {
+      var ch = 1 - Math.pow(p.fail, k + 1), h = ch * 160, x = 40 + k * (bw + gap), cur = k === p.retries;
+      s += '<rect x="' + x + '" y="' + (200 - h) + '" width="' + bw + '" height="' + h + '" rx="3" fill="' + (cur ? 'var(--accent)' : 'var(--svc)') + '" stroke="' + (cur ? 'var(--accent)' : 'var(--svc-line)') + '" stroke-width="1"/>';
+      s += '<text class="' + (cur ? 'ttl' : 'mono') + '" x="' + (x + bw / 2) + '" y="' + (192 - h) + '" text-anchor="middle">' + pct(ch) + '</text>';
+      s += '<text class="mono" x="' + (x + bw / 2) + '" y="220" text-anchor="middle">' + k + '</text>';
+    }
+    s += '<text class="sub" x="340" y="246" text-anchor="middle">maxRetries (a barra destacada é o valor atual)</text>';
+    document.getElementById('s2').innerHTML = '<title id="s2-t">Chance de a compra ser aprovada para cada valor de maxRetries</title>' + s;
+    var ch = 1 - Math.pow(p.fail, p.retries + 1);
+    document.getElementById('r2').textContent = 'Com falha de ' + pct(p.fail) + ' por chamada e maxRetries = ' + p.retries + ', a compra é aprovada em ' + pct(ch) + ' dos casos. Nos outros ' + pct(1 - ch) + ', o usuário vê um erro mesmo depois de todas as tentativas. Cada retry a mais ajuda menos que o anterior.';
+  }
+
+  /* Parte 3 */
+  var J = 'off', W = 'short', token3 = 0;
+  function simulate(p, useJ) {
+    var arr = [], refused = 0;
+    for (var u = 0; u < 50; u++) {
+      var t = 0;
+      for (var k = 0; k <= p.retries; k++) {
+        arr.push(t);
+        var ok = Math.random() >= p.fail;
+        t += CALL;
+        if (ok) break;
+        if (k === p.retries) { refused++; break; }
+        t += waitFor(k, p, useJ);
+      }
+    }
+    return { arr: arr, refused: refused };
+  }
+  async function run3() {
+    var my = ++token3, p = P(), sim = simulate(p, J === 'on');
+    var maxT = sim.arr.reduce(function (m, t) { return Math.max(m, t); }, 0) + 200;
+    var win = W === 'short' ? 4000 : Math.max(4000, Math.ceil(maxT / 1000) * 1000);
+    var bins = 160, bwMs = win / bins, cnt = new Array(bins).fill(0);
+    sim.arr.forEach(function (t) { var b = Math.floor(t / bwMs); if (b < bins) cnt[b]++; });
+    var peak = Math.max.apply(null, cnt);
+    var base = '<line class="axis" x1="40" y1="210" x2="640" y2="210"/>' +
+      '<text class="mono" x="40" y="230">0 s</text>' +
+      '<text class="mono" x="340" y="230" text-anchor="middle">' + fmtMs(win / 2) + '</text>' +
+      '<text class="mono" x="640" y="230" text-anchor="end">' + fmtMs(win) + '</text>' +
+      '<line class="axis" x1="40" y1="30" x2="640" y2="30" stroke-dasharray="2 4" opacity=".6"/>' +
+      '<text class="mono" x="44" y="24">50 requisições</text>' +
+      '<text class="sub" x="340" y="254" text-anchor="middle">Chegadas no payment-service, em fatias de ' + Math.round(bwMs) + ' ms</text>' +
+      '<g id="bars"></g><line id="ph" x1="40" y1="30" x2="40" y2="210" stroke="var(--accent)" stroke-width="1.5"/>';
+    document.getElementById('s3').innerHTML = '<title id="s3-t">Histograma de requisições chegando ao payment-service ao longo do tempo</title>' + base;
+    var g = document.getElementById('bars'), ph = document.getElementById('ph'), bw = 600 / bins, shown = 0, seen = 0;
+    document.getElementById('b1').textContent = 0; document.getElementById('b2').textContent = 0; document.getElementById('b3').textContent = '…';
+    document.getElementById('r3').textContent = 'As 50 compras do k6 saem juntas no instante zero.';
+    await tween(3200, function (k) {
+      if (my !== token3) return;
+      var upto = Math.floor(k * bins);
+      for (; shown < upto; shown++) {
+        var c = cnt[shown];
+        seen += c;
+        if (!c) continue;
+        var h = c / 50 * 180;
+        g.insertAdjacentHTML('beforeend', '<rect x="' + (40 + shown * bw) + '" y="' + (210 - h) + '" width="' + Math.max(1, bw - .5) + '" height="' + h + '" fill="' + (c >= 20 ? 'var(--bad-line)' : c >= 8 ? 'var(--warn-line)' : 'var(--svc-line)') + '"/>');
+      }
+      ph.setAttribute('x1', 40 + k * 600); ph.setAttribute('x2', 40 + k * 600);
+      document.getElementById('b1').textContent = seen;
+    });
+    if (my !== token3) return;
+    document.getElementById('b1').textContent = sim.arr.length;
+    document.getElementById('b2').textContent = peak;
+    document.getElementById('b3').textContent = sim.refused + ' de 50';
+    var outside = sim.arr.filter(function (t) { return t >= win; }).length;
+    var msg = J === 'off'
+      ? 'Sem jitter, quem falhou junto espera exatamente o mesmo tempo e volta junto. O payment-service recebe ondas: até ' + peak + ' requisições na mesma fatia de tempo, logo depois de já ter falhado com elas.'
+      : 'Com jitter de ' + p.jitter + ' ms, cada compra espera um pouco mais ou um pouco menos, e as ondas se espalham. O pico caiu para ' + peak + '. Repare que o jitter é fixo: nas esperas longas ele quase não faz diferença.';
+    if (W === 'short' && outside) msg += ' Outras ' + outside + ' requisições chegam depois dos 4 s.';
+    document.getElementById('r3').textContent = msg;
+  }
+  function sync3() {
+    document.querySelectorAll('[data-j]').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.j === J); });
+    document.querySelectorAll('[data-w]').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.w === W); });
+    document.getElementById('j-on').textContent = 'Com jitter (' + P().jitter + ' ms)';
+  }
+
+  /* Eventos */
+  Object.keys(ids).forEach(function (k) {
+    document.getElementById(ids[k]).addEventListener('input', function () { syncOutputs(); draw2(); sync3(); });
+    document.getElementById(ids[k]).addEventListener('change', function () { run1(); run3(); });
+  });
+  document.getElementById('reset').addEventListener('click', function () {
+    Object.keys(DEF).forEach(function (k) { document.getElementById(ids[k]).value = DEF[k]; });
+    syncOutputs(); draw2(); sync3(); run1(); run3();
+  });
+  document.getElementById('run1').addEventListener('click', run1);
+  document.getElementById('run3').addEventListener('click', run3);
+  document.querySelectorAll('[data-j]').forEach(function (b) { b.addEventListener('click', function () { J = b.dataset.j; sync3(); run3(); }); });
+  document.querySelectorAll('[data-w]').forEach(function (b) { b.addEventListener('click', function () { W = b.dataset.w; sync3(); run3(); }); });
+
+  syncOutputs(); draw2(); sync3();
+  s1.innerHTML = scene1Base();
+  document.getElementById('ftxt').textContent = pct(P().fail);
+  run3();
+})();
+</script>
+</body>
+</html>

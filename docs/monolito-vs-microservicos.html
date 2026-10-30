@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Monólito ou microserviços</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: uma coluna para projeção em sala; controles no topo, diagrama ao centro, leitura do cenário abaixo */
+:root {
+  --bg: #f3f5f8;
+  --panel: #ffffff;
+  --fg: #16202b;
+  --muted: #566372;
+  --line: #c9d1db;
+  --accent: #1f5fa8;
+  --accent-soft: #e2ecf8;
+  --svc: #e7eef6;
+  --svc-line: #7c93ad;
+  --team: #eceff3;
+  --ok: #dcefe6; --ok-line: #2f8a5f; --ok-fg: #1d5a3d;
+  --warn: #fbeccc; --warn-line: #b7791f; --warn-fg: #6b4610;
+  --bad: #f9dede; --bad-line: #c0392b; --bad-fg: #7a1f17;
+  --font-body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11161c; --panel: #19212a; --fg: #e6ebf1; --muted: #9aa8b7; --line: #2e3a47;
+    --accent: #7fb0ea; --accent-soft: #1e3149; --svc: #1f2b38; --svc-line: #5f7b99; --team: #222b35;
+    --ok: #17362a; --ok-line: #4fbf88; --ok-fg: #b5ecd0;
+    --warn: #3a2d14; --warn-line: #e0a63f; --warn-fg: #f6dcaa;
+    --bad: #3d1c1a; --bad-line: #ef6b5d; --bad-fg: #f8c5bf;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11161c; --panel: #19212a; --fg: #e6ebf1; --muted: #9aa8b7; --line: #2e3a47;
+  --accent: #7fb0ea; --accent-soft: #1e3149; --svc: #1f2b38; --svc-line: #5f7b99; --team: #222b35;
+  --ok: #17362a; --ok-line: #4fbf88; --ok-fg: #b5ecd0;
+  --warn: #3a2d14; --warn-line: #e0a63f; --warn-fg: #f6dcaa;
+  --bad: #3d1c1a; --bad-line: #ef6b5d; --bad-fg: #f8c5bf;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); font-size: 18px; line-height: 1.55;
+  padding-block: 2rem 3rem;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1040px; margin: 0 auto; display: grid; gap: 1.5rem; }
+header { display: grid; gap: .35rem; }
+.eyebrow { font-family: var(--font-mono); font-size: .8rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+h1 { margin: 0; font-size: clamp(1.8rem, 4vw, 2.6rem); line-height: 1.15; text-wrap: balance; }
+.lede { margin: 0; color: var(--muted); max-width: 62ch; }
+.controls { display: grid; gap: .75rem; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 1rem 1.1rem; }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.row > span { font-family: var(--font-mono); font-size: .8rem; color: var(--muted); min-width: 7.5rem; letter-spacing: .03em; }
+button {
+  font: inherit; font-size: .95rem; color: var(--fg); background: transparent;
+  border: 1px solid var(--line); border-radius: 6px; padding: .4rem .85rem; cursor: pointer;
+}
+button:hover { border-color: var(--accent); }
+button[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 700; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+label.check { display: flex; align-items: center; gap: .5rem; cursor: pointer; font-size: .95rem; }
+label.check input { width: 1.1rem; height: 1.1rem; accent-color: var(--accent); }
+.stage { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 1rem; overflow-x: auto; }
+svg { display: block; width: 100%; min-width: 640px; height: auto; }
+svg text { font-family: var(--font-body); fill: var(--fg); }
+svg .sub { font-size: 12px; fill: var(--muted); }
+svg .ttl { font-size: 14px; font-weight: 700; }
+svg .mono { font-family: var(--font-mono); font-size: 11px; fill: var(--muted); }
+.n-team rect { fill: var(--team); stroke: var(--line); }
+.n-svc rect { fill: var(--svc); stroke: var(--svc-line); }
+.n-db rect { fill: var(--team); stroke: var(--line); stroke-dasharray: 4 3; }
+.n-ok rect { fill: var(--ok); stroke: var(--ok-line); } .n-ok text { fill: var(--ok-fg); }
+.n-warn rect { fill: var(--warn); stroke: var(--warn-line); } .n-warn text { fill: var(--warn-fg); }
+.n-bad rect { fill: var(--bad); stroke: var(--bad-line); } .n-bad text { fill: var(--bad-fg); }
+.n-pipe rect { fill: var(--warn); stroke: var(--warn-line); } .n-pipe text { fill: var(--warn-fg); }
+.frame { fill: none; stroke: var(--svc-line); }
+.frame.bad { stroke: var(--bad-line); }
+.arr { stroke: var(--muted); stroke-width: 1.4; fill: none; }
+.arr.cut { stroke-dasharray: 4 4; }
+.reading { display: grid; gap: .4rem; background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 0; padding: 1rem 1.25rem; }
+.reading h2 { margin: 0; font-size: 1.2rem; text-wrap: balance; }
+.reading p { margin: 0; max-width: 68ch; }
+.notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; }
+.notes div { min-width: 0; }
+.notes h3 { margin: 0 0 .25rem; font-size: 1rem; }
+.notes p { margin: 0; color: var(--muted); font-size: .95rem; }
+footer { font-family: var(--font-mono); font-size: .75rem; color: var(--muted); }
+@media (max-width: 520px) { body { font-size: 16px; } .row > span { min-width: 100%; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="eyebrow">Arquitetura de software · estudo de caso</span>
+    <h1>Monólito ou microserviços: um e-commerce em três situações</h1>
+    <p class="lede">Três times cuidam de catálogo, pedidos e pagamento. Troque a arquitetura e o cenário e observe o que muda no deploy, na escala e no comportamento quando algo falha.</p>
+  </header>
+
+  <section class="controls" aria-label="Controles">
+    <div class="row" role="group" aria-label="Arquitetura">
+      <span>ARQUITETURA</span>
+      <button id="a-mono" data-a="mono">Monólito</button>
+      <button id="a-micro" data-a="micro">Microserviços</button>
+    </div>
+    <div class="row" role="group" aria-label="Cenário">
+      <span>CENÁRIO</span>
+      <button id="c-normal" data-c="normal">Dia comum</button>
+      <button id="c-bf" data-c="bf">Black Friday</button>
+      <button id="c-falha" data-c="falha">Clientes com problema</button>
+    </div>
+    <div class="row">
+      <span>RESILIÊNCIA</span>
+      <label class="check"><input type="checkbox" id="cb"> Timeout, circuit breaker e fallback</label>
+    </div>
+  </section>
+
+  <section class="stage" aria-label="Diagrama">
+    <svg id="cv" viewBox="0 0 680 330" role="img" aria-labelledby="cv-t">
+      <title id="cv-t">Diagrama do e-commerce conforme a arquitetura e o cenário escolhidos</title>
+    </svg>
+  </section>
+
+  <section class="reading" aria-live="polite">
+    <h2 id="rt"></h2>
+    <p id="rp"></p>
+  </section>
+
+  <section class="notes" aria-label="Para discutir">
+    <div><h3>Lei de Conway</h3><p>O sistema tende a copiar a forma como os times se comunicam. Microserviço resolve bem o problema de times travando o deploy uns dos outros.</p></div>
+    <div><h3>Escala independente</h3><p>Monólito também escala horizontalmente. O ganho aparece quando partes do sistema têm cargas muito diferentes, e quando o banco não é o verdadeiro gargalo.</p></div>
+    <div><h3>Resiliência é desenho</h3><p>Separar serviços dá a possibilidade de isolar falhas. Sem timeout, circuit breaker e fallback, a falha se espalha em cascata pela rede.</p></div>
+    <div><h3>Monólito distribuído</h3><p>Serviços separados que precisam subir juntos e dividem o mesmo banco. Fica o custo das duas abordagens e o benefício de nenhuma.</p></div>
+  </section>
+
+  <footer>Material de apoio para aula · Java Advanced</footer>
+</div>
+
+<script>
+(function () {
+  var A = 'mono', C = 'normal';
+  var cv = document.getElementById('cv');
+  var defs = '<defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>';
+
+  function box(x, y, w, h, cls, t, s) {
+    var o = '<g class="' + cls + '"><rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="7" stroke-width="1"/>';
+    if (s) {
+      o += '<text class="ttl" x="' + (x + w / 2) + '" y="' + (y + h / 2 - 8) + '" text-anchor="middle" dominant-baseline="central">' + t + '</text>';
+      o += '<text class="sub" x="' + (x + w / 2) + '" y="' + (y + h / 2 + 11) + '" text-anchor="middle" dominant-baseline="central">' + s + '</text>';
+    } else {
+      o += '<text class="ttl" x="' + (x + w / 2) + '" y="' + (y + h / 2) + '" text-anchor="middle" dominant-baseline="central">' + t + '</text>';
+    }
+    return o + '</g>';
+  }
+  function arrow(x1, y1, x2, y2, extra) {
+    return '<line class="arr ' + (extra || '') + '" x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" marker-end="url(#ah)"/>';
+  }
+
+  var teams = [['Time catálogo', 70], ['Time pedidos', 260], ['Time pagamento', 450]];
+
+  function draw() {
+    var cb = document.getElementById('cb').checked;
+    var s = defs, title = '', text = '';
+    teams.forEach(function (t) { s += box(t[1], 16, 160, 36, 'n-team', t[0]); s += arrow(t[1] + 80, 54, t[1] + 80, 74); });
+
+    if (A === 'mono') {
+      var down = C === 'falha';
+      s += box(70, 78, 540, 30, 'n-pipe', 'Um pipeline, uma janela de deploy, uma fila');
+      s += '<rect class="frame' + (down ? ' bad' : '') + '" x="70" y="128" width="540" height="122" rx="14" stroke-width="1.2"/>';
+      s += '<text class="ttl" x="90" y="150" dominant-baseline="central">Aplicação monolítica</text>';
+      s += '<text class="mono" x="590" y="150" text-anchor="end" dominant-baseline="central">' + (down ? 'processo fora do ar' : (C === 'bf' ? '8 instâncias de tudo' : '2 instâncias')) + '</text>';
+      ['Catálogo', 'Pedido', 'Clientes', 'Pagamento'].forEach(function (m, i) {
+        var cls = 'n-svc', sub = 'módulo';
+        if (down) { cls = 'n-bad'; sub = 'fora'; }
+        else if (C === 'bf') { cls = i === 0 ? 'n-warn' : 'n-svc'; sub = i === 0 ? 'sob pressão' : 'replicado à toa'; }
+        s += box(90 + i * 130, 170, 115, 56, cls, m, sub);
+      });
+      s += arrow(340, 252, 340, 272);
+      s += box(240, 276, 200, 36, C === 'bf' ? 'n-warn' : 'n-db', 'Banco único');
+
+      if (C === 'normal') { title = 'Quem trava quem'; text = 'Três times entregam o mesmo artefato. A correção urgente do pagamento espera a feature do catálogo ficar pronta, porque o deploy é um só. O gargalo aqui é de coordenação entre pessoas.'; }
+      if (C === 'bf') { title = 'Escalar o quê, exatamente'; text = 'A busca explodiu e a saída foi replicar a aplicação inteira oito vezes. Pagamento e cadastro vão junto, mesmo sem precisar. E todas as instâncias continuam batendo no mesmo banco.'; }
+      if (C === 'falha') { title = 'Até onde a falha vai'; text = 'Um vazamento de memória no módulo de clientes derruba o processo, e a loja inteira cai com ele. O circuit breaker não muda nada aqui: não existe chamada remota para cortar.'; }
+    } else {
+      var sv = [['Catálogo', 70], ['Pedido', 210], ['Clientes', 350], ['Pagamento', 490]];
+      teams.forEach(function (t) { s += box(t[1] + 10, 78, 140, 30, 'n-ok', 'Deploy próprio'); });
+      sv.forEach(function (v, i) {
+        var cls = 'n-svc', sub = '2 instâncias';
+        if (C === 'bf' && i === 0) { cls = 'n-warn'; sub = '8 instâncias'; }
+        if (C === 'falha') {
+          if (i === 2) { cls = 'n-bad'; sub = 'lento, sem resposta'; }
+          else if (i === 1) { cls = cb ? 'n-ok' : 'n-bad'; sub = cb ? 'usa fallback' : 'threads presas'; }
+          else if (i === 3 && !cb) { cls = 'n-warn'; sub = 'pedidos parados'; }
+        }
+        s += box(v[1], 136, 120, 64, cls, v[0], sub);
+        s += arrow(v[1] + 60, 202, v[1] + 60, 232);
+        s += box(v[1] + 10, 236, 100, 34, 'n-db', 'Banco');
+      });
+      s += arrow(331, 168, 347, 168, C === 'falha' && cb ? 'cut' : '');
+      s += '<text class="mono" x="340" y="300" text-anchor="middle">Pedido chama Clientes de forma síncrona' + (C === 'falha' && cb ? ' · circuito aberto' : '') + '</text>';
+
+      if (C === 'normal') { title = 'Quem trava quem'; text = 'Cada time sobe o seu serviço quando quiser. Em troca, entram chamadas de rede entre serviços, contratos que precisam ser versionados, dados espalhados em vários bancos e muito mais coisa para monitorar.'; }
+      if (C === 'bf') { title = 'Escalar o quê, exatamente'; text = 'Só o catálogo foi para oito instâncias. Pedido, clientes e pagamento seguem como estavam, cada um com o seu banco. É aqui que a escala independente vale o custo.'; }
+      if (C === 'falha' && !cb) { title = 'Até onde a falha vai'; text = 'Clientes ficou lento. O Pedido fica esperando, prende threads e trava também, e o Pagamento para de receber pedidos. A falha subiu em cascata, mesmo com os serviços separados. Ligue a resiliência e compare.'; }
+      if (C === 'falha' && cb) { title = 'Até onde a falha vai'; text = 'Depois de algumas falhas o circuit breaker para de chamar Clientes, e o Pedido segue com um fallback, como dados do cliente em cache. A loja continua vendendo; só o perfil do cliente fica indisponível.'; }
+    }
+
+    cv.innerHTML = '<title id="cv-t">Diagrama do e-commerce conforme a arquitetura e o cenário escolhidos</title>' + s;
+    document.getElementById('rt').textContent = title;
+    document.getElementById('rp').textContent = text;
+    document.querySelectorAll('[data-a]').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.a === A); });
+    document.querySelectorAll('[data-c]').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.c === C); });
+  }
+
+  document.querySelectorAll('[data-a]').forEach(function (b) { b.addEventListener('click', function () { A = b.dataset.a; draw(); }); });
+  document.querySelectorAll('[data-c]').forEach(function (b) { b.addEventListener('click', function () { C = b.dataset.c; draw(); }); });
+  document.getElementById('cb').addEventListener('change', draw);
+  draw();
+})();
+</script>
+</body>
+</html>

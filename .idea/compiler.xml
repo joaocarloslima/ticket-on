@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="JavacSettings">
+    <option name="ADDITIONAL_OPTIONS_OVERRIDE">
+      <module name="eureka" options="-parameters" />
+      <module name="eureka.main" options="-parameters" />
+      <module name="eureka.test" options="-parameters" />
+      <module name="gateway" options="-parameters" />
+      <module name="gateway.main" options="-parameters" />
+      <module name="gateway.test" options="-parameters" />
+      <module name="payment-service" options="-parameters" />
+      <module name="payment-service.main" options="-parameters" />
+      <module name="payment-service.test" options="-parameters" />
+      <module name="ticket-service" options="-parameters" />
+      <module name="ticket-service.main" options="-parameters" />
+      <module name="ticket-service.test" options="-parameters" />
+    </option>
+  </component>
+</project>

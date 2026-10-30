@@ -1,0 +1,5 @@
+### Comprar ingresso
+    POST http://localhost:8080/tickets/purchase/1
+
+### Processar pagamento
+POST http://localhost:8081/payments

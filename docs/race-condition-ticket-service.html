@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Race condition no ticket-service</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: uma coluna para projeção em sala; controles no topo, diagrama ao centro, leitura do cenário abaixo */
+:root {
+  --bg: #f3f5f8;
+  --panel: #ffffff;
+  --fg: #16202b;
+  --muted: #566372;
+  --line: #c9d1db;
+  --accent: #1f5fa8;
+  --accent-soft: #e2ecf8;
+  --svc: #e7eef6;
+  --svc-line: #7c93ad;
+  --team: #eceff3;
+  --ok: #dcefe6; --ok-line: #2f8a5f; --ok-fg: #1d5a3d;
+  --warn: #fbeccc; --warn-line: #b7791f; --warn-fg: #6b4610;
+  --bad: #f9dede; --bad-line: #c0392b; --bad-fg: #7a1f17;
+  --la: #ece9f8; --la-line: #6a5bc0; --la-fg: #3a2f86;
+  --lb: #e2f3ef; --lb-line: #2b8a78; --lb-fg: #1a5a4e;
+  --font-body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11161c; --panel: #19212a; --fg: #e6ebf1; --muted: #9aa8b7; --line: #2e3a47;
+    --accent: #7fb0ea; --accent-soft: #1e3149; --svc: #1f2b38; --svc-line: #5f7b99; --team: #222b35;
+    --ok: #17362a; --ok-line: #4fbf88; --ok-fg: #b5ecd0;
+    --warn: #3a2d14; --warn-line: #e0a63f; --warn-fg: #f6dcaa;
+    --bad: #3d1c1a; --bad-line: #ef6b5d; --bad-fg: #f8c5bf;
+    --la: #26224a; --la-line: #9d92ea; --la-fg: #d9d4fb;
+    --lb: #143530; --lb-line: #5cc7b1; --lb-fg: #c3efe5;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11161c; --panel: #19212a; --fg: #e6ebf1; --muted: #9aa8b7; --line: #2e3a47;
+  --accent: #7fb0ea; --accent-soft: #1e3149; --svc: #1f2b38; --svc-line: #5f7b99; --team: #222b35;
+  --ok: #17362a; --ok-line: #4fbf88; --ok-fg: #b5ecd0;
+  --warn: #3a2d14; --warn-line: #e0a63f; --warn-fg: #f6dcaa;
+  --bad: #3d1c1a; --bad-line: #ef6b5d; --bad-fg: #f8c5bf;
+  --la: #26224a; --la-line: #9d92ea; --la-fg: #d9d4fb;
+  --lb: #143530; --lb-line: #5cc7b1; --lb-fg: #c3efe5;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); font-size: 18px; line-height: 1.55;
+  padding-block: 2rem 3rem;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1040px; margin: 0 auto; display: grid; gap: 1.5rem; }
+header { display: grid; gap: .35rem; }
+.eyebrow { font-family: var(--font-mono); font-size: .8rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+h1 { margin: 0; font-size: clamp(1.8rem, 4vw, 2.6rem); line-height: 1.15; text-wrap: balance; }
+.lede { margin: 0; color: var(--muted); max-width: 62ch; }
+.controls { display: grid; gap: .75rem; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 1rem 1.1rem; }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.row > span { font-family: var(--font-mono); font-size: .8rem; color: var(--muted); min-width: 7.5rem; letter-spacing: .03em; }
+button {
+  font: inherit; font-size: .95rem; color: var(--fg); background: transparent;
+  border: 1px solid var(--line); border-radius: 6px; padding: .4rem .85rem; cursor: pointer;
+}
+button:hover { border-color: var(--accent); }
+button[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 700; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+label.check { display: flex; align-items: center; gap: .5rem; cursor: pointer; font-size: .95rem; }
+label.check input { width: 1.1rem; height: 1.1rem; accent-color: var(--accent); }
+.stage { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 1rem; overflow-x: auto; }
+svg { display: block; width: 100%; min-width: 640px; height: auto; }
+svg text { font-family: var(--font-body); fill: var(--fg); }
+svg .sub { font-size: 12px; fill: var(--muted); }
+svg .ttl { font-size: 14px; font-weight: 700; }
+svg .mono { font-family: var(--font-mono); font-size: 11px; fill: var(--muted); }
+.n-team rect { fill: var(--team); stroke: var(--line); }
+.n-svc rect { fill: var(--svc); stroke: var(--svc-line); }
+.n-db rect { fill: var(--team); stroke: var(--line); stroke-dasharray: 4 3; }
+.n-ok rect { fill: var(--ok); stroke: var(--ok-line); } .n-ok text { fill: var(--ok-fg); }
+.n-warn rect { fill: var(--warn); stroke: var(--warn-line); } .n-warn text { fill: var(--warn-fg); }
+.n-bad rect { fill: var(--bad); stroke: var(--bad-line); } .n-bad text { fill: var(--bad-fg); }
+.n-pipe rect { fill: var(--warn); stroke: var(--warn-line); } .n-pipe text { fill: var(--warn-fg); }
+.frame { fill: none; stroke: var(--svc-line); }
+.frame.bad { stroke: var(--bad-line); }
+.arr { stroke: var(--muted); stroke-width: 1.4; fill: none; }
+.arr.cut { stroke-dasharray: 4 4; }
+.reading { display: grid; gap: .4rem; background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 0; padding: 1rem 1.25rem; }
+.reading h2 { margin: 0; font-size: 1.2rem; text-wrap: balance; }
+.reading p { margin: 0; max-width: 68ch; }
+.notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; }
+.notes div { min-width: 0; }
+.notes h3 { margin: 0 0 .25rem; font-size: 1rem; }
+.notes p { margin: 0; color: var(--muted); font-size: .95rem; }
+.n-a rect { fill: var(--la); stroke: var(--la-line); } .n-a text { fill: var(--la-fg); }
+.n-b rect { fill: var(--lb); stroke: var(--lb-line); } .n-b text { fill: var(--lb-fg); }
+.divider { border: 0; border-top: 1px solid var(--line); margin: 1.5rem 0 0; }
+.section-head { display: grid; gap: .35rem; }
+.section-head h2 { margin: 0; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1.2; text-wrap: balance; }
+.stepper { margin-left: auto; display: flex; align-items: center; gap: .5rem; }
+.stepper output { font-family: var(--font-mono); font-size: .85rem; color: var(--muted); min-width: 4.5rem; text-align: center; }
+.kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+.kpi { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: .8rem 1rem; }
+.kpi span { display: block; font-size: .85rem; color: var(--muted); }
+.kpi b { font-size: 1.8rem; font-variant-numeric: tabular-nums; }
+.kpi.alert { border-color: var(--bad-line); }
+.kpi.alert b { color: var(--bad-line); }
+code { font-family: var(--font-mono); font-size: .9em; }
+@media (max-width: 520px) { .kpis { grid-template-columns: 1fr; } .stepper { margin-left: 0; } }
+footer { font-family: var(--font-mono); font-size: .75rem; color: var(--muted); }
+@media (max-width: 520px) { body { font-size: 16px; } .row > span { min-width: 100%; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header >
+    <span class="eyebrow">ticket-system · ticket-service</span>
+    <h1>Race condition: duas compras para o Show Coldplay</h1>
+    <p class="lede">O estoque começa com 10 ingressos. O <code>purchase</code> lê a quantidade, espera 500 ms, decrementa e salva. Acompanhe duas compras que chegam quase juntas, primeiro sem lock e depois com lock pessimista.</p>
+  </header>
+
+  <section class="controls" aria-label="Controles da race condition">
+    <div class="row" role="group" aria-label="Versão do código">
+      <span>VERSÃO</span>
+      <button id="r-sem" data-r="sem">Sem lock</button>
+      <button id="r-com" data-r="com">Com @Lock(PESSIMISTIC_WRITE)</button>
+      <div class="stepper">
+        <button id="r-prev" aria-label="Passo anterior">Anterior</button>
+        <output id="r-pos"></output>
+        <button id="r-next" aria-label="Próximo passo">Próximo</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="stage" aria-label="Linha do tempo das duas compras">
+    <svg id="rv" viewBox="0 0 680 320" role="img" aria-labelledby="rv-t">
+      <title id="rv-t">Compra A à esquerda, banco ao centro, compra B à direita; cada linha é um passo</title>
+    </svg>
+  </section>
+
+  <section class="kpis" aria-live="polite">
+    <div class="kpi"><span>Ingressos vendidos</span><b id="k1">0</b></div>
+    <div class="kpi"><span>Quantidade no banco</span><b id="k2">10</b></div>
+    <div class="kpi" id="k3box"><span>Ingressos que sumiram</span><b id="k3">0</b></div>
+  </section>
+
+  <section class="reading" aria-live="polite">
+    <h2 id="r-t"></h2>
+    <p id="r-p"></p>
+  </section>
+
+  <section class="notes" aria-label="Para discutir">
+    <div><h3>O sleep não cria o bug</h3><p>Ele só alarga a janela entre ler e gravar. Em produção essa janela existe sempre, menor, e o bug aparece de vez em quando.</p></div>
+    <div><h3>Só @Transactional não basta</h3><p>A transação garante que A grava tudo ou nada, mas não impede B de ler o mesmo 10 antes do commit de A.</p></div>
+    <div><h3>Com 50 compras no k6</h3><p>Sem lock, várias leem o mesmo valor e o sistema vende mais do que existe. Com lock, as 10 primeiras passam e as outras 40 encontram o estoque zerado.</p></div>
+    <div><h3>E o lock otimista?</h3><p>Com <code>@Version</code> ninguém espera: B tenta gravar, percebe que a versão mudou e recebe um erro. Quem chamou decide se tenta de novo.</p></div>
+  </section>
+
+  <footer>Material de apoio para aula · Java Advanced</footer>
+</div>
+
+<script>
+(function () {
+  var S = {
+    sem: [
+      { l: 'A', t: 'SELECT quantidade', s: 'lê 10', db: 10, sold: 0, k: '', h: 'A primeira leitura', x: 'A compra A lê o estoque: 10 ingressos.' },
+      { l: 'B', t: 'SELECT quantidade', s: 'lê 10', db: 10, sold: 0, k: '', h: 'Os dois leem o mesmo valor', x: 'A compra B chega enquanto A está no sleep e lê o mesmo 10. Nenhuma das duas sabe da outra.' },
+      { l: 'A', t: 'sleep(500)', s: 'ainda com 10 na mão', db: 10, sold: 0, k: '', h: 'Um número que já ficou velho', x: 'As duas guardam o 10 em memória. Esse valor deixa de ser verdade assim que uma delas gravar.' },
+      { l: 'A', t: 'UPDATE quantidade = 9', s: 'commit', db: 9, sold: 1, k: '', h: 'A grava primeiro', x: 'A calcula 10 − 1 e grava 9. Até aqui, tudo certo.' },
+      { l: 'B', t: 'UPDATE quantidade = 9', s: 'commit', db: 9, sold: 2, k: 'bad', h: 'Lost update', x: 'B também calcula 10 − 1 e grava 9 por cima. Foram vendidos dois ingressos, mas o estoque só baixou um. A escrita de A foi apagada.' }
+    ],
+    com: [
+      { l: 'A', t: 'SELECT ... FOR UPDATE', s: 'lê 10 e trava a linha', db: 10, sold: 0, k: '', lock: 'travada por A', h: 'A leitura já trava', x: 'Com o lock pessimista, a leitura de A trava a linha do ingresso no banco.' },
+      { l: 'B', t: 'SELECT ... FOR UPDATE', s: 'bloqueada, esperando', db: 10, sold: 0, k: 'warn', lock: 'travada por A', h: 'B entra na fila', x: 'B tenta ler a mesma linha e fica parada. Em vez de receber um valor velho, ela espera a vez.' },
+      { l: 'A', t: 'sleep(500)', s: 'B continua esperando', db: 10, sold: 0, k: '', lock: 'travada por A', h: 'A janela fechou', x: 'O sleep que antes abria espaço para a corrida agora só deixa B esperando mais um pouco.' },
+      { l: 'A', t: 'UPDATE quantidade = 9', s: 'commit, libera a linha', db: 9, sold: 1, k: '', lock: 'livre', h: 'Commit libera a linha', x: 'A grava 9, e o commit da transação solta o lock.' },
+      { l: 'B', t: 'SELECT liberado', s: 'lê 9', db: 9, sold: 1, k: '', lock: 'travada por B', h: 'B lê o valor atualizado', x: 'Só agora B consegue ler, e já enxerga o 9 gravado por A.' },
+      { l: 'B', t: 'UPDATE quantidade = 8', s: 'commit', db: 8, sold: 2, k: 'ok', lock: 'livre', h: 'Estoque consistente', x: 'Dois vendidos, estoque 8. O custo foi B esperar meio segundo a mais.' }
+    ]
+  };
+  var M = 'sem', i = 0;
+  function g(x, y, w, h, c, t, s) {
+    return '<g class="' + c + '"><rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="6" stroke-width="1"/>' +
+      '<text class="ttl" x="' + (x + w / 2) + '" y="' + (y + h / 2 - 8) + '" text-anchor="middle" dominant-baseline="central">' + t + '</text>' +
+      '<text class="sub" x="' + (x + w / 2) + '" y="' + (y + h / 2 + 10) + '" text-anchor="middle" dominant-baseline="central">' + s + '</text></g>';
+  }
+  function head(x, w, c, t) {
+    return '<g class="' + c + '"><rect x="' + x + '" y="14" width="' + w + '" height="32" rx="6" stroke-width="1"/><text class="ttl" x="' + (x + w / 2) + '" y="30" text-anchor="middle" dominant-baseline="central">' + t + '</text></g>';
+  }
+  function draw() {
+    var st = S[M];
+    var o = head(40, 220, 'n-a', 'Compra A') + head(280, 120, 'n-team', 'Banco (H2)') + head(420, 220, 'n-b', 'Compra B');
+    st.forEach(function (e, n) {
+      if (n > i) return;
+      var y = 60 + n * 42;
+      var c = e.k === 'bad' ? 'n-bad' : e.k === 'warn' ? 'n-warn' : e.k === 'ok' ? 'n-ok' : (e.l === 'A' ? 'n-a' : 'n-b');
+      o += '<g opacity="' + (n === i ? 1 : 0.5) + '">';
+      o += g(e.l === 'A' ? 40 : 420, y, 220, 36, c, e.t, e.s);
+      o += g(280, y, 120, 36, e.k === 'bad' ? 'n-bad' : 'n-team', 'qtd = ' + e.db, e.lock || 'sem trava');
+      o += '</g>';
+    });
+    document.getElementById('rv').innerHTML = '<title id="rv-t">Compra A à esquerda, banco ao centro, compra B à direita; cada linha é um passo</title>' + o;
+    var e = st[i], lost = Math.max(0, e.sold - (10 - e.db));
+    document.getElementById('k1').textContent = e.sold;
+    document.getElementById('k2').textContent = e.db;
+    document.getElementById('k3').textContent = lost;
+    document.getElementById('k3box').classList.toggle('alert', lost > 0);
+    document.getElementById('r-t').textContent = e.h;
+    document.getElementById('r-p').textContent = e.x;
+    document.getElementById('r-pos').textContent = (i + 1) + ' de ' + st.length;
+    document.querySelectorAll('[data-r]').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.r === M); });
+  }
+  document.querySelectorAll('[data-r]').forEach(function (b) { b.addEventListener('click', function () { M = b.dataset.r; i = 0; draw(); }); });
+  document.getElementById('r-next').addEventListener('click', function () { i = (i + 1) % S[M].length; draw(); });
+  document.getElementById('r-prev').addEventListener('click', function () { i = (i - 1 + S[M].length) % S[M].length; draw(); });
+  document.addEventListener('keydown', function (ev) {
+    if (ev.target.closest && ev.target.closest('input, textarea')) return;
+    if (ev.key === 'ArrowRight') document.getElementById('r-next').click();
+    if (ev.key === 'ArrowLeft') document.getElementById('r-prev').click();
+  });
+  draw();
+})();
+</script>
+</body>
+</html>
